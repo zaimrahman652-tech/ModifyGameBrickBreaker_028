@@ -264,3 +264,10 @@ class Game(tk.Frame):
                 self.update_hud()
                 
         self.ball.collide(objects)
+
+
+if __name__ == '__main__':
+    root = tk.Tk()
+    root.title('Advanced Brick Breaker - Ultimate Edition')
+    game = Game(root)
+    game.mainloop()

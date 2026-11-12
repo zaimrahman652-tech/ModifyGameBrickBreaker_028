@@ -169,3 +169,98 @@ class Game(tk.Frame):
         self.text = self.draw_text(self.width/2, self.height/2,
                                    'PRESS SPACE TO LAUNCH', '#00ffcc', 22)
         self.canvas.bind('<space>', lambda _: self.start_game())
+
+    def add_ball(self):
+        if self.ball is not None:
+            self.ball.delete()
+        paddle_coords = self.paddle.get_position()
+        x = (paddle_coords[0] + paddle_coords[2]) * 0.5
+        self.ball = Ball(self.canvas, x, 410)
+        self.paddle.set_ball(self.ball)
+
+    def add_brick(self, x, y, hits):
+        brick = Brick(self.canvas, x, y, hits)
+        self.items[brick.item] = brick
+
+    def draw_text(self, x, y, text, color='white', size=24):
+        font = ('Consolas', size, 'bold')
+        return self.canvas.create_text(x, y, text=text,
+                                       fill=color, font=font)
+
+    def update_hud(self):
+        lives_str = f'LIVES: {self.lives}'
+        score_str = f'SCORE: {self.score}'
+        level_str = f'LEVEL: {self.level}'
+
+        if self.hud is None:
+            self.hud = self.draw_text(65, 20, lives_str, '#ff007f', 12)
+            self.score_hud = self.draw_text(self.width - 70, 20, score_str, '#00ffcc', 12)
+            self.level_hud = self.draw_text(self.width / 2, 20, level_str, '#f1c40f', 12)
+        else:
+            self.canvas.itemconfig(self.hud, text=lives_str)
+            self.canvas.itemconfig(self.score_hud, text=score_str)
+            self.canvas.itemconfig(self.level_hud, text=level_str)
+
+    def start_game(self):
+        self.canvas.unbind('<space>')
+        self.canvas.delete(self.text)
+        self.paddle.ball = None
+        self.game_loop()
+
+    def game_loop(self):
+        self.check_collisions()
+        num_bricks = len(self.canvas.find_withtag('brick'))
+        
+        if num_bricks == 0:
+            self.ball.speed = None
+            self.level += 1
+            self.draw_text(self.width/2, self.height/2, f'LEVEL {self.level} CLEAR!', '#00ffcc', 28)
+            self.after(2000, self.next_level)
+        elif self.ball.get_position()[3] >= self.height:
+            self.ball.speed = None
+            self.lives -= 1
+            self.update_hud()
+            if self.lives < 0:
+                self.draw_text(self.width/2, self.height/2, 'GAME OVER!', '#ff4d4d', 32)
+                self.draw_text(self.width/2, self.height/2 + 40, 'Press R to Restart', '#ffffff', 14)
+                self.canvas.bind('<r>', lambda _: self.restart_game())
+            else:
+                self.after(1000, self.setup_game)
+        else:
+            self.ball.update()
+            self.after(30, self.game_loop)  # Kecepatan frame diperhalus
+
+    def next_level(self):
+        self.canvas.delete('all')
+        self.items = {}
+        self.paddle = Paddle(self.canvas, self.width/2, 430)
+        self.items[self.paddle.item] = self.paddle
+        self.build_level()
+        self.setup_game()
+        # Tingkatkan kecepatan bola di level berikutnya
+        self.ball.speed += 2
+
+    def restart_game(self):
+        self.canvas.unbind('<r>')
+        self.canvas.delete('all')
+        self.items = {}
+        self.lives = 3
+        self.score = 0
+        self.level = 1
+        self.paddle = Paddle(self.canvas, self.width/2, 430)
+        self.items[self.paddle.item] = self.paddle
+        self.build_level()
+        self.setup_game()
+
+    def check_collisions(self):
+        ball_coords = self.ball.get_position()
+        items = self.canvas.find_overlapping(*ball_coords)
+        objects = [self.items[x] for x in items if x in self.items]
+        
+        for obj in objects:
+            if isinstance(obj, Brick):
+                # Tambah skor dinamis berdasarkan jenis balok yang dihancurkan
+                self.score += Brick.COLORS[obj.hits]['score']
+                self.update_hud()
+                
+        self.ball.collide(objects)

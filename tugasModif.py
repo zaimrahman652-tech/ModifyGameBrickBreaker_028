@@ -97,3 +97,75 @@ class Brick(GameObject):
         3: {'color': '#f1c40f', 'score': 30},  # Kuning (3 Hits)
         4: {'color': '#9b59b6', 'score': 50}   # Ungu (4 Hits - Paling Keras)
     }
+
+    def __init__(self, canvas, x, y, hits):
+        self.width = 72
+        self.height = 22
+        self.hits = hits
+        cfg = Brick.COLORS[hits]
+        item = canvas.create_rectangle(x - self.width / 2,
+                                       y - self.height / 2,
+                                       x + self.width / 2,
+                                       y + self.height / 2,
+                                       fill=cfg['color'], outline='#111111', tags='brick')
+        super(Brick, self).__init__(canvas, item)
+
+    def hit(self):
+        self.hits -= 1
+        if self.hits <= 0:
+            self.delete()
+        else:
+            self.canvas.itemconfig(self.item,
+                                   fill=Brick.COLORS[self.hits]['color'])
+
+
+class Game(tk.Frame):
+    def __init__(self, master):
+        super(Game, self).__init__(master)
+        self.lives = 3
+        self.score = 0
+        self.level = 1
+        self.width = 650
+        self.height = 500
+        
+        # Tema warna latar belakang gelap futuristik
+        self.canvas = tk.Canvas(self, bg='#0f0f1a',
+                                width=self.width,
+                                height=self.height, highlightthickness=0)
+        self.canvas.pack()
+        self.pack()
+
+        self.items = {}
+        self.ball = None
+        self.paddle = Paddle(self.canvas, self.width/2, 430)
+        self.items[self.paddle.item] = self.paddle
+        
+        self.build_level()
+
+        self.hud = None
+        self.score_hud = None
+        self.level_hud = None
+        
+        self.setup_game()
+        self.canvas.focus_set()
+        
+        # Menggunakan kontrol tombol panah dengan responsivitas tinggi
+        self.canvas.bind('<Left>', lambda _: self.paddle.move(-20))
+        self.canvas.bind('<Right>', lambda _: self.paddle.move(20))
+        self.canvas.bind('<a>', lambda _: self.paddle.move(-20))
+        self.canvas.bind('<d>', lambda _: self.paddle.move(20))
+
+    def build_level(self):
+        # Menyusun pola balok berlapis dari level kesulitan 1 sampai 4
+        for x in range(12, self.width - 12, 76):
+            self.add_brick(x + 36, 50, 4)
+            self.add_brick(x + 36, 76, 3)
+            self.add_brick(x + 36, 102, 2)
+            self.add_brick(x + 36, 128, 1)
+
+    def setup_game(self):
+        self.add_ball()
+        self.update_hud()
+        self.text = self.draw_text(self.width/2, self.height/2,
+                                   'PRESS SPACE TO LAUNCH', '#00ffcc', 22)
+        self.canvas.bind('<space>', lambda _: self.start_game())
